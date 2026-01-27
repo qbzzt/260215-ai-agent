@@ -150,7 +150,6 @@ def get_quote(pool: PoolInfo, block_number: int = None) -> Quote:
 def get_quotes(pool: PoolInfo, start_block: int, end_block: int, step: int) -> list[Quote]:
     quotes = []
     for block in range(start_block, end_block + 1, step):
-        print(f"Fetching quote for block {block}...")
         quote = get_quote(pool, block)
         quotes.append(quote)
     return quotes
