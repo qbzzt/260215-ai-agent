@@ -1,0 +1,13 @@
+[project]
+name = "ai-trading-agent"
+version = "0.1.0"
+description = "A simple onchain trading agent using Web3.py and OpenAI."
+requires-python = ">=3.10"
+
+dependencies = [
+    "web3>=6.0.0",
+    "openai>=1.0.0",
+]
+
+[tool.uv]
+

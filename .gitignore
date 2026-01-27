@@ -139,7 +139,7 @@ celerybeat.pid
 .envrc
 .venv
 env/
-venv/
+ai-agent/
 ENV/
 env.bak/
 venv.bak/
