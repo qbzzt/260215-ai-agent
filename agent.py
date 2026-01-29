@@ -2,7 +2,7 @@ from web3 import Web3
 from web3.contract import Contract
 from decimal import Decimal, ROUND_HALF_UP
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pprint import pprint
 import time
 import functools
