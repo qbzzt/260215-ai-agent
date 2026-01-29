@@ -96,7 +96,7 @@ class PoolInfo:
     asset: str
     decimal_factor: Decimal = 1
 
-    def get_price(self, block: int = w3.eth.block_number) -> Decimal:
+    def get_price(self, block: int) -> Decimal:
         assert block <= w3.eth.block_number, "Block is in the future"
         sqrt_price_x96 = Decimal(self.contract.functions.slot0().call(block_identifier=block)[0])
         raw_price = (sqrt_price_x96 / Decimal(2**96)) ** 2  # (token1 per token0)
