@@ -127,6 +127,7 @@ def read_pool(address: str) -> PoolInfo:
     token1Address = pool_contract.functions.token1().call()
     token0 = read_token(token0Address)
     token1 = read_token(token1Address)
+
     return PoolInfo(
         address=address,
         asset=f"{token1.symbol}/{token0.symbol}",
@@ -143,7 +144,7 @@ def get_quote(pool: PoolInfo, block_number: int = None) -> Quote:
     price = pool.get_price(block_number)
     return Quote(
         timestamp=datetime.fromtimestamp(block.timestamp, timezone.utc).isoformat(),
-        price=price.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+        price=price.quantize(Decimal("0.01")),
         asset=pool.asset
     )
 
