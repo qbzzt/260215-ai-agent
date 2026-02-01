@@ -8,7 +8,7 @@ from pprint import pprint
 import time
 import functools
 import sys
-
+from openai import OpenAI
 
 print = functools.partial(print, flush=True)
 
@@ -80,6 +80,7 @@ ERC20_ABI = [
 ]
 
 w3 = Web3(Web3.HTTPProvider(MAINNET_URL))
+open_ai = OpenAI()  # The client reads the OPENAI_API_KEY environment variable
 
 @dataclass(frozen=True)
 class ERC20Token:
@@ -201,4 +202,23 @@ wethwbtc_quotes = get_quotes(
 
 future_time = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()[0:16]
 
-print(make_prompt([wethusdc_quotes,wethwbtc_quotes], future_time, wethusdc_pool.asset))
+response = open_ai.chat.completions.create(
+    model="gpt-4-turbo",
+    messages=[
+        {"role": "user", "content": prompt}
+    ],
+    temperature=0.0,
+    max_tokens=16,
+)
+
+expected_price = Decimal(response.choices[0].message.content.strip())
+current_price = wethusdc_quotes[-1].price
+
+print ("Current price:", wethusdc_quotes[-1].price)
+print(f"In {future_time}, expected price: {expected_price} USD")
+
+if (expected_price > current_price):
+    print(f"Buy, I expect the price to go up by {expected_price - current_price} USD")
+else:
+    print(f"Sell, I expect the price to go down by {current_price - expected_price} USD")   
+    
