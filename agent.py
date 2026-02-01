@@ -1,11 +1,9 @@
+import re
 from web3 import Web3
 from web3.contract import Contract
 from decimal import Decimal, ROUND_HALF_UP
 from dataclasses import dataclass
-
-###
 from datetime import datetime, timezone, timedelta
-
 from pprint import pprint
 import time
 import functools
@@ -21,9 +19,7 @@ HOUR_BLOCKS = MINUTE_BLOCKS * 60
 DAY_BLOCKS = HOUR_BLOCKS * 24
 CYCLE_BLOCKS = DAY_BLOCKS
 
-###
-
-# The address of the pools we're reading
+# The addresses of the pools we're reading
 WETHUSDC_ADDRESS = Web3.to_checksum_address("0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640")
 WETHWBTC_ADDRESS = Web3.to_checksum_address("0xCBCdF9626bC03E24f779434178A73a0B4bad62eD")
 
@@ -101,11 +97,8 @@ class PoolInfo:
     contract: Contract
     asset: str
     decimal_factor: Decimal = 1
-
-###
     reverse: bool = False
 
-###
     def get_price(self, block: int) -> Decimal:
         assert block <= w3.eth.block_number, "Block is in the future"
         sqrt_price_x96 = Decimal(self.contract.functions.slot0().call(block_identifier=block)[0])
@@ -135,7 +128,6 @@ def read_token(address: str) -> ERC20Token:
         contract=token
     )
 
-###
 def read_pool(address: str, reverse: bool = False) -> PoolInfo:
     pool_contract = w3.eth.contract(address=address, abi=POOL_ABI)
     token0Address = pool_contract.functions.token0().call()
@@ -171,28 +163,25 @@ def get_quotes(pool: PoolInfo, start_block: int, end_block: int, step: int) -> l
         quotes.append(quote)
     return quotes
 
-###
 def format_quotes(quotes: list[Quote]) -> str:
-    lines = []
-    current_asset = ""
+    result = f"Asset: {quotes[0].asset}\n"
     for quote in quotes:
-        if (current_asset != quote.asset):
-            lines.append(f"Asset: {quote.asset}")
-            current_asset = quote.asset
-        lines.append(f"{quote.timestamp[0:16]} {quote.price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)}")
-    return "\n".join(lines)
+        result += f"\t{quote.timestamp[0:16]} {quote.price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)}\n"
+    return result
 
-###
-def make_prompt(quotes: list[Quote], expected_time: str, asset: str) -> str:
+def make_prompt(quotes: list[list[Quote]], expected_time: str, asset: str) -> str:
     return f"""
 Given these quotes:
-{format_quotes(quotes)}
+{
+    functools.reduce(lambda acc, q: acc + '\n' + q,
+        map(lambda q: format_quotes(q), quotes))
+}
+
 What would you expect the value for {asset} to be at time {expected_time}?
+
 Provide your answer as a single number rounded to two decimal places,
 without any other text.
     """
-
-###
 
 wethusdc_pool = read_pool(WETHUSDC_ADDRESS, True)
 wethusdc_quotes = get_quotes(
@@ -212,4 +201,4 @@ wethwbtc_quotes = get_quotes(
 
 future_time = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()[0:16]
 
-print(make_prompt(wethusdc_quotes + wethwbtc_quotes, future_time, wethusdc_pool.asset))
+print(make_prompt([wethusdc_quotes,wethwbtc_quotes], future_time, wethusdc_pool.asset))
