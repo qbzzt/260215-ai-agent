@@ -201,7 +201,7 @@ wethwbtc_quotes = get_quotes(
 )
 
 future_time = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()[0:16]
-prompt = make_prompt(quotes, future_time, wethusdc_pool.asset)
+prompt = make_prompt([wethusdc_quotes,wethwbtc_quotes], future_time, wethusdc_pool.asset)
 
 response = open_ai.chat.completions.create(
     model="gpt-4-turbo",
