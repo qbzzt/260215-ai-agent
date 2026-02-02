@@ -1,3 +1,4 @@
+import re
 from web3 import Web3
 from web3.contract import Contract
 from decimal import Decimal, ROUND_HALF_UP
@@ -17,6 +18,8 @@ MINUTE_BLOCKS = int(60 / BLOCK_TIME_SECONDS)
 HOUR_BLOCKS = MINUTE_BLOCKS * 60
 DAY_BLOCKS = HOUR_BLOCKS * 24
 CYCLE_BLOCKS = DAY_BLOCKS
+CYCLES_BACK = 12 # How many cycles we look back
+CYCLES_FOR_TEST = 40 # For the backtest, how many cycles we test over
 
 # The addresses of the pools we're reading
 WETHUSDC_ADDRESS = Web3.to_checksum_address("0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640")
@@ -183,10 +186,12 @@ Provide your answer as a single number rounded to two decimal places,
 without any other text.
     """
 
+
+# Get lots of quotes
 wethusdc_pool = read_pool(WETHUSDC_ADDRESS, True)
 wethusdc_quotes = get_quotes(
     wethusdc_pool,
-    w3.eth.block_number - 12*CYCLE_BLOCKS,
+    w3.eth.block_number - CYCLE_BLOCKS*CYCLES_FOR_TEST,
     w3.eth.block_number,
     CYCLE_BLOCKS,
 )
@@ -194,30 +199,48 @@ wethusdc_quotes = get_quotes(
 wethwbtc_pool = read_pool(WETHWBTC_ADDRESS)
 wethwbtc_quotes = get_quotes(
     wethwbtc_pool,
-    w3.eth.block_number - 12*CYCLE_BLOCKS,
+    w3.eth.block_number - CYCLE_BLOCKS*CYCLES_FOR_TEST,
     w3.eth.block_number,
     CYCLE_BLOCKS
 )
 
-future_time = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()[0:16]
-prompt = make_prompt([wethusdc_quotes,wethwbtc_quotes], future_time, wethusdc_pool.asset)
+# Create predictions and check them against real history
 
-response = open_ai.chat.completions.create(
-    model="gpt-4-turbo",
-    messages=[
-        {"role": "user", "content": prompt}
-    ],
-    temperature=0.0,
-    max_tokens=16,
-)
+total_error = Decimal(0)
+changes = []
 
-expected_price = Decimal(response.choices[0].message.content.strip())
-current_price = wethusdc_quotes[-1].price
+for index in range(0,len(wethusdc_quotes)-CYCLES_BACK):
+    wethusdc_slice = wethusdc_quotes[index:index+CYCLES_BACK]
+    wethwbtc_slice = wethwbtc_quotes[index:index+CYCLES_BACK]
+    prediction_time = wethusdc_quotes[index+CYCLES_BACK].timestamp[0:16]
+    prompt = make_prompt([wethusdc_slice,wethwbtc_slice], prediction_time, wethusdc_pool.asset)
+    response = open_ai.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.0,
+        max_tokens=16,
+    )
 
-print ("Current price:", wethusdc_quotes[-1].price)
-print(f"In {future_time}, expected price: {expected_price} USD")
+    predicted_price = Decimal(response.choices[0].message.content.strip())
+    real_price = wethusdc_quotes[index+CYCLES_BACK].price
+    prediction_time_price = wethusdc_quotes[index+CYCLES_BACK-1].price
+    error = abs(predicted_price - real_price)
+    total_error += error
+    print (f"Prediction for {prediction_time}: predicted {predicted_price} USD, real {real_price} USD, error {error} USD")
 
-if (expected_price > current_price):
-    print(f"Buy, I expect the price to go up by {expected_price - current_price} USD")
-else:
-    print(f"Sell, I expect the price to go down by {current_price - expected_price} USD")   
+    recomended_action = 'buy' if predicted_price > prediction_time_price else 'sell'
+    price_increase = real_price - prediction_time_price
+    changes.append(price_increase if recomended_action == 'buy' else -price_increase)
+
+
+print (f"Average prediction error over {len(wethusdc_quotes)-CYCLES_BACK} predictions: {total_error / Decimal(len(wethusdc_quotes)-CYCLES_BACK)} USD")
+
+length_changes = Decimal(len(changes))
+mean_change = sum(changes, Decimal(0)) / length_changes
+print (f"Mean change per recommendation: {mean_change} USD")
+var = sum((x - mean_change) ** 2 for x in changes) / length_changes
+print (f"Standard variance of changes: {var.sqrt().quantize(Decimal("0.01"))} USD")
+print (f"Profitable days: {len(list(filter(lambda x: x > 0, changes)))/length_changes:.2%}")
+print (f"Losing days: {len(list(filter(lambda x: x < 0, changes)))/length_changes:.2%}")
