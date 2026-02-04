@@ -11,7 +11,7 @@ from openai import OpenAI
 
 print = functools.partial(print, flush=True)
 
-MAINNET_URL = "https://eth.drpc.org"
+MAINNET_URL = "http://localhost:8545"
 BLOCK_TIME_SECONDS = 12
 MINUTE_BLOCKS = int(60 / BLOCK_TIME_SECONDS)
 HOUR_BLOCKS = MINUTE_BLOCKS * 60
@@ -221,3 +221,5 @@ if (expected_price > current_price):
     print(f"Buy, I expect the price to go up by {expected_price - current_price} USD")
 else:
     print(f"Sell, I expect the price to go down by {current_price - expected_price} USD")   
+
+pprint(wethusdc_pool)
