@@ -397,6 +397,22 @@ Provide your answer as a single number rounded to two decimal places,
 without any other text.
     """
 
+wethusdc_pool = read_pool(WETHUSDC_ADDRESS, True)
+wethusdc_quotes = get_quotes(
+    wethusdc_pool,
+    w3.eth.block_number - 12*CYCLE_BLOCKS,
+    w3.eth.block_number,
+    CYCLE_BLOCKS,
+)
+
+wethwbtc_pool = read_pool(WETHWBTC_ADDRESS)
+wethwbtc_quotes = get_quotes(
+    wethwbtc_pool,
+    w3.eth.block_number - 12*CYCLE_BLOCKS,
+    w3.eth.block_number,
+    CYCLE_BLOCKS
+)
+
 ###
 def txn_params() -> dict:
     return {
@@ -462,21 +478,6 @@ def balances():
     print(f"{wethusdc_pool.token0.symbol} Balance: {Decimal(token0_balance) / Decimal(10 ** wethusdc_pool.token0.decimals)}")
     print(f"{wethusdc_pool.token1.symbol} Balance: {Decimal(token1_balance) / Decimal(10 ** wethusdc_pool.token1.decimals)}")
 
-wethusdc_pool = read_pool(WETHUSDC_ADDRESS, True)
-wethusdc_quotes = get_quotes(
-    wethusdc_pool,
-    w3.eth.block_number - 12*CYCLE_BLOCKS,
-    w3.eth.block_number,
-    CYCLE_BLOCKS,
-)
-
-wethwbtc_pool = read_pool(WETHWBTC_ADDRESS)
-wethwbtc_quotes = get_quotes(
-    wethwbtc_pool,
-    w3.eth.block_number - 12*CYCLE_BLOCKS,
-    w3.eth.block_number,
-    CYCLE_BLOCKS
-)
 
 future_time = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()[0:16]
 prompt = make_prompt([wethusdc_quotes,wethwbtc_quotes], future_time, wethusdc_pool.asset)
@@ -502,6 +503,7 @@ print(f"In {future_time}, expected price: {expected_price} USD")
 print("Account balances before trade:")
 balances()
 
+###
 if (expected_price > current_price):
     print(f"Buy, I expect the price to go up by {expected_price - current_price} USD")
     sell()
