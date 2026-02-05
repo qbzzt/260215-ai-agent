@@ -506,10 +506,10 @@ balances()
 ###
 if (expected_price > current_price):
     print(f"Buy, I expect the price to go up by {expected_price - current_price} USD")
-    sell()
+    buy(wethusdc_quotes[-1])  
 else:
     print(f"Sell, I expect the price to go down by {current_price - expected_price} USD")   
-    buy()
+    sell()
 
 print("Account balances after trade:")
 balances()
