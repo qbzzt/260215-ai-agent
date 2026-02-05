@@ -27,7 +27,7 @@ SWAP_ROUTER_ADDRESS=Web3.to_checksum_address("0xE592427A0AEce92De3Edee1F18E0157C
 WETH_TO_USDC=bytes.fromhex("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc20001F4A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
 USDC_TO_WETH=bytes.fromhex("A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB480001F4C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
 PRIVATE_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-WETH_TRADE_AMOUNT=10**18  # 1 WETH
+WETH_TRADE_AMOUNT=1
 
 
 POOL_ABI = [
@@ -103,7 +103,7 @@ ERC20_ABI = [
         "payable": False,
         "stateMutability": "nonpayable",
         "type": "function"
-    },        
+    },
     {
         "inputs": [],
         "name": "symbol",
@@ -281,7 +281,7 @@ SWAP_ROUTER_ABI = [
     ],
     "stateMutability": "payable",
     "type": "function"
-  }      
+  }
 ]
 
 w3 = Web3(Web3.HTTPProvider(MAINNET_URL))
@@ -294,23 +294,6 @@ swap_router = w3.eth.contract(
     abi=SWAP_ROUTER_ABI
 )
 
-SELL_PARAMS = {
-    "path": WETH_TO_USDC,
-    "recipient": account.address,
-    "deadline": 2**256 - 1,
-    "amountIn": WETH_TRADE_AMOUNT,
-    "amountOutMinimum": 0,
-}
-
-BUY_PARAMS = {
-    "path": USDC_TO_WETH,
-    "recipient": account.address,
-    "deadline": 2**256 - 1,
-    "amountOut": WETH_TRADE_AMOUNT,
-    "amountInMaximum": 10**18,
-}
-
-
 
 @dataclass(frozen=True)
 class ERC20Token:
@@ -319,7 +302,7 @@ class ERC20Token:
     decimals: int
     contract: Contract
 
-    
+
 @dataclass(frozen=True)
 class PoolInfo:
     address: str
@@ -414,6 +397,71 @@ Provide your answer as a single number rounded to two decimal places,
 without any other text.
     """
 
+###
+def txn_params() -> dict:
+    return {
+        "from": account.address,
+        "value": 0,
+        "gas": 300000,
+        "nonce": w3.eth.get_transaction_count(account.address),
+    }
+
+def approve_token(contract: Contract, amount: int):
+    txn = contract.functions.approve(SWAP_ROUTER_ADDRESS, amount).build_transaction(txn_params())
+    signed_txn = w3.eth.account.sign_transaction(txn, private_key=PRIVATE_KEY)
+    tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+    print(f"Approve transaction sent: {tx_hash.hex()}")
+    w3.eth.wait_for_transaction_receipt(tx_hash)
+    print("Approve transaction mined.")
+
+SELL_PARAMS = {
+    "path": WETH_TO_USDC,
+    "recipient": account.address,
+    "deadline": 2**256 - 1,
+    "amountIn": WETH_TRADE_AMOUNT * 10 ** wethusdc_pool.token1.decimals,
+    "amountOutMinimum": 0,
+}
+
+def make_buy_params(quote: Quote) -> dict: 
+    return {
+        "path": USDC_TO_WETH,
+        "recipient": account.address,
+        "deadline": 2**256 - 1,
+        "amountIn": int(quote.price*WETH_TRADE_AMOUNT) * 10**wethusdc_pool.token0.decimals,
+        "amountOutMinimum": 0,
+    }
+   
+
+def buy(quote: Quote):
+    buy_params = make_buy_params(quote)
+    pprint(buy_params)
+    approve_token(wethusdc_pool.token0.contract, buy_params["amountIn"])
+    txn = swap_router.functions.exactInput(buy_params).build_transaction(txn_params())
+    signed_txn = w3.eth.account.sign_transaction(txn, private_key=PRIVATE_KEY)
+    tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+    print(f"Buy transaction sent: {tx_hash.hex()}")
+    w3.eth.wait_for_transaction_receipt(tx_hash)
+    print("Buy transaction mined.")
+
+
+def sell():
+    approve_token(wethusdc_pool.token1.contract, 
+                  WETH_TRADE_AMOUNT * 10**wethusdc_pool.token1.decimals)
+    txn = swap_router.functions.exactInput(SELL_PARAMS).build_transaction(txn_params())
+    signed_txn = w3.eth.account.sign_transaction(txn, private_key=PRIVATE_KEY)
+    tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+    print(f"Sell transaction sent: {tx_hash.hex()}")
+    w3.eth.wait_for_transaction_receipt(tx_hash)
+    print("Sell transaction mined.")
+
+
+def balances():
+    token0_balance = wethusdc_pool.token0.contract.functions.balanceOf(account.address).call()
+    token1_balance = wethusdc_pool.token1.contract.functions.balanceOf(account.address).call()
+
+    print(f"{wethusdc_pool.token0.symbol} Balance: {Decimal(token0_balance) / Decimal(10 ** wethusdc_pool.token0.decimals)}")
+    print(f"{wethusdc_pool.token1.symbol} Balance: {Decimal(token1_balance) / Decimal(10 ** wethusdc_pool.token1.decimals)}")
+
 wethusdc_pool = read_pool(WETHUSDC_ADDRESS, True)
 wethusdc_quotes = get_quotes(
     wethusdc_pool,
@@ -448,49 +496,8 @@ current_price = wethusdc_quotes[-1].price
 print ("Current price:", wethusdc_quotes[-1].price)
 print(f"In {future_time}, expected price: {expected_price} USD")
 
-###
-
-def txn_params() -> dict:
-    return {
-        "from": account.address,
-        "value": 0,
-        "gas": 300000,
-        "nonce": w3.eth.get_transaction_count(account.address),
-    }
-
-def approve_token(contract: Contract, amount: int):
-    txn = contract.functions.approve(SWAP_ROUTER_ADDRESS, amount).build_transaction(txn_params())
-    signed_txn = w3.eth.account.sign_transaction(txn, private_key=PRIVATE_KEY)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
-    print(f"Approve transaction sent: {tx_hash.hex()}")
-    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    print("Approve transaction mined.")
-
-def buy():
-    approve_token(wethusdc_pool.token1.contract, BUY_PARAMS["amountInMaximum"])
-    txn = swap_router.functions.exactOutput(BUY_PARAMS).build_transaction(txn_params())
-    signed_txn = w3.eth.account.sign_transaction(txn, private_key=PRIVATE_KEY)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
-    print(f"Buy transaction sent: {tx_hash.hex()}")
-    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    print("Buy transaction mined.")
 
 
-def sell():
-    approve_token(wethusdc_pool.token0.contract, 10**18)    
-    txn = swap_router.functions.exactInput(SELL_PARAMS).build_transaction(txn_params())
-    signed_txn = w3.eth.account.sign_transaction(txn, private_key=PRIVATE_KEY)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
-    print(f"Sell transaction sent: {tx_hash.hex()}")
-    w3.eth.wait_for_transaction_receipt(tx_hash)
-    print("Sell transaction mined.")
-
-def balances():
-    token0_balance = wethusdc_pool.token0.contract.functions.balanceOf(account.address).call()
-    token1_balance = wethusdc_pool.token1.contract.functions.balanceOf(account.address).call()
-
-    print(f"{wethusdc_pool.token0.symbol} Balance: {Decimal(token0_balance) / Decimal(10 ** wethusdc_pool.token0.decimals)}")
-    print(f"{wethusdc_pool.token1.symbol} Balance: {Decimal(token1_balance) / Decimal(10 ** wethusdc_pool.token1.decimals)}")
 
 print("Account balances before trade:")
 balances()
