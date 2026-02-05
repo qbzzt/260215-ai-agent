@@ -22,7 +22,6 @@ CYCLE_BLOCKS = DAY_BLOCKS
 WETHUSDC_ADDRESS = Web3.to_checksum_address("0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640")
 WETHWBTC_ADDRESS = Web3.to_checksum_address("0xCBCdF9626bC03E24f779434178A73a0B4bad62eD")
 
-###
 SWAP_ROUTER_ADDRESS=Web3.to_checksum_address("0xE592427A0AEce92De3Edee1F18E0157C05861564")
 WETH_TO_USDC=bytes.fromhex("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc20001F4A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
 USDC_TO_WETH=bytes.fromhex("A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB480001F4C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
@@ -63,7 +62,6 @@ POOL_ABI = [
 ]
 
 ERC20_ABI = [
-###
     {
         "inputs": [
         {
@@ -127,7 +125,6 @@ ERC20_ABI = [
     }
 ]
 
-###
 SWAP_ROUTER_ABI = [
   {
     "inputs": [
@@ -174,126 +171,17 @@ SWAP_ROUTER_ABI = [
     ],
     "stateMutability": "payable",
     "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "tokenIn",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "tokenOut",
-            "type": "address"
-          },
-          {
-            "internalType": "uint24",
-            "name": "fee",
-            "type": "uint24"
-          },
-          {
-            "internalType": "address",
-            "name": "recipient",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "deadline",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "amountIn",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "amountOutMinimum",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint160",
-            "name": "sqrtPriceLimitX96",
-            "type": "uint160"
-          }
-        ],
-        "internalType": "struct ISwapRouter.ExactInputSingleParams",
-        "name": "params",
-        "type": "tuple"
-      }
-    ],
-    "name": "exactInputSingle",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "amountOut",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "components": [
-          {
-            "internalType": "bytes",
-            "name": "path",
-            "type": "bytes"
-          },
-          {
-            "internalType": "address",
-            "name": "recipient",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "deadline",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "amountOut",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "amountInMaximum",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct ISwapRouter.ExactOutputParams",
-        "name": "params",
-        "type": "tuple"
-      }
-    ],
-    "name": "exactOutput",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "amountIn",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "payable",
-    "type": "function"
   }
 ]
 
 w3 = Web3(Web3.HTTPProvider(MAINNET_URL))
 open_ai = OpenAI()  # The client reads the OPENAI_API_KEY environment variable
 
-###
 account = w3.eth.account.from_key(PRIVATE_KEY)
 swap_router = w3.eth.contract(
     address=SWAP_ROUTER_ADDRESS,
     abi=SWAP_ROUTER_ABI
 )
-
 
 @dataclass(frozen=True)
 class ERC20Token:
@@ -413,7 +301,6 @@ wethwbtc_quotes = get_quotes(
     CYCLE_BLOCKS
 )
 
-###
 def txn_params() -> dict:
     return {
         "from": account.address,
@@ -497,13 +384,9 @@ current_price = wethusdc_quotes[-1].price
 print ("Current price:", wethusdc_quotes[-1].price)
 print(f"In {future_time}, expected price: {expected_price} USD")
 
-
-
-
 print("Account balances before trade:")
 balances()
 
-###
 if (expected_price > current_price):
     print(f"Buy, I expect the price to go up by {expected_price - current_price} USD")
     buy(wethusdc_quotes[-1])  
