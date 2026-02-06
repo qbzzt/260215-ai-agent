@@ -337,7 +337,6 @@ def make_buy_params(quote: Quote) -> dict:
 
 def buy(quote: Quote):
     buy_params = make_buy_params(quote)
-    pprint(buy_params)
     approve_token(wethusdc_pool.token0.contract, buy_params["amountIn"])
     txn = swap_router.functions.exactInput(buy_params).build_transaction(txn_params())
     signed_txn = w3.eth.account.sign_transaction(txn, private_key=PRIVATE_KEY)
